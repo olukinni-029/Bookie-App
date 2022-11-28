@@ -21,7 +21,7 @@ app.use(
 connectDB();
 const port = process.env.PORT|| 1080;
 
-app.use('/api',userRoute);
+app.use('/api/user',userRoute);
 app.use('/api',imageRoute);
 
 
