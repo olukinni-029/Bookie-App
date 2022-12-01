@@ -4,6 +4,7 @@ const axios = require("axios");
 const { createJwtToken, verifyJwtToken } = require("../middleware/token");
 const { OTP, message } = require("../utils/message");
 const nodemailer = require("nodemailer");
+let { PASSWORD, EMAIL } = process.env;
 
 exports.userSignup = async (req, res) => {
   try {
@@ -27,32 +28,57 @@ exports.userSignup = async (req, res) => {
     // Encrypt password
     const salt = await bcrypt.genSalt(10);
     const hashPassword = await bcrypt.hash(password, salt);
-    const hashOtp = await bcrypt.hash(OTP, salt);
-    //  create user
+    // create user
     const user = await User.create({
       phoneNumber,
       password: hashPassword,
       email,
       role: phoneNumber === process.env.ADMIN_PHONE ? "Admin" : "User",
-      otp: hashOtp,
+      phoneOtp:OTP,
     });
-    // Generate Otp
-    const userNumber = user.phoneNumber;
+    // Generate Otp, save and send to the user
+    let userNumber = user.phoneNumber;
     const config = {
       method: "post",
-      url: `https://account.kudisms.net/api/?username=${process.env.EMAIL}&password=${process.env.PASSWORD}&message=${message}&sender=[insert sender here]&mobiles=0${userNumber}`,
+      url: `https://account.kudisms.net/api/?username=${EMAIL}&password=${PASSWORD}&message=${message}&sender=Bookie&mobiles=0${userNumber}`,
       headers: {},
     };
+    // fetch the kudisms 
     const resp = await axios(config);
     res.status(201).json({
-      message: "User successfully created",
+      message: "OTP  sent successfully",
       user,
       userId: user._id,
     });
     console.log(resp.data);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ error });
+    return res.status(500).json({ error:error.message });
+  }
+};
+
+// resend otp
+exports.resendOtp = async (req, res) => {
+  try {
+    const id = req.body._id;
+    const user = await User.findOne({ _id: id});
+    if (user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    const phone = req.body.phoneNumber
+    const checkUser = await User.findOne({phoneNumber});
+    let userNumber = checkUser.phoneNumber;
+    const config = {
+      method: "post",
+      url: `https://account.kudisms.net/api/?username=${EMAIL}&password=${PASSWORD}&message=${message}&sender=Bookie&mobiles=0${userNumber}`,
+      headers: {},
+    };
+    const resp = await axios(config);
+    console.log(resp.date);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error:error.message });
   }
 };
 
@@ -65,14 +91,13 @@ exports.verifyPhoneOtp = async (req, res) => {
       res.status(400).json({ message: "User not found" });
       return;
     }
-
-    if (!otp) {
-      res.status(400).json({ message: "Incorrect otp" });
+    if (user.phoneOtp !== otp) {
+      res.status(400).json({ message: "Incorrect otp error" });
       return;
     }
     const token = createJwtToken({ userId: user._id });
 
-    user.otp = "";
+    user.phoneOtp = "";
     await user.save();
 
     return res.status(201).json({
@@ -116,8 +141,8 @@ exports.loginWithPhone = async (req, res) => {
     // tokenize
     const token = createJwtToken({ userId: user._id });
     return res
-      .status(202)
-      .json({ message: "Wallet logged in successfully", token });
+      .status(200)
+      .json({ message: "User logged in successfully", token });
   } catch (error) {
     console.log(error);
     return res
@@ -252,39 +277,39 @@ exports.resetPassword = async (req, res) => {
 };
 
 // update phone number
-exports.updatePhone = async (req,res)=>{
-  try{
+exports.updatePhone = async (req, res) => {
+  try {
     const id = req.params.id;
-    const{phoneNumber}=req.body;
+    const { phoneNumber } = req.body;
     const user = User.findByIdAndUpdate(
       { _id: id },
-      {phoneNumber},
+      { phoneNumber },
       {
         new: true,
       }
-      );
-      res.status(200).json({message:"Updated successfully",user});
-      return;
-  }catch (error){
-    console.log(error);
-   res.status(500).json({message:error.message});
-  };
-};
-
-exports.allUsers = async (req,res)=>{
-  try {
-     const user = await User.find();
-     return res.status(200).json({message:"Registered Users",user});
+    );
+    res.status(200).json({ message: "Updated successfully", user });
+    return;
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
 
-exports.viewUser = async (req,res)=>{
+exports.allUsers = async (req, res) => {
+  try {
+    const user = await User.find();
+    return res.status(200).json({ message: "Registered Users", user });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.viewUser = async (req, res) => {
   try {
     const _id = req.params.userId;
-    const user = await User.findOne({userId:_id});
+    const user = await User.findOne({ userId: _id });
     return res.status(200).json(user);
   } catch (error) {
     console.log(error);

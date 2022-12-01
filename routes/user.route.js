@@ -8,11 +8,13 @@ const {
   updatePhone,
   allUsers,
   viewUser,
+  resendOtp,
 } = require("../controller/user.controller");
 const checkAuth = require("../middleware/checkAuth");
 const router = express.Router();
 
 router.post("/signup", userSignup);
+router.post("/resendOtp",resendOtp);
 router.post("/otp", verifyPhoneOtp);
 router.post("/login", loginWithPhone);
 router.post("/forgotPass", forgetPassword);

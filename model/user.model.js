@@ -20,9 +20,9 @@ const userSchema = new mongoose.Schema({
     school:{
         type:String,
     },
-    otp: {
+    phoneOtp: {
         type: String,
-        expires: '2m',
+        expires: '3m',
       },
       role :{
         type : String,
