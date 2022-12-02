@@ -18,14 +18,14 @@ module.exports = async (req, res, next) => {
       next({ status: 403, message: "auth token is missing" });
       return;
     }
-
+    // verify the userId with the token
     const userId = verifyJwtToken(token, next);
 
     if (!userId) {
       next({ status: 403, message: "incorrect token" });
       return;
     }
-
+    // check for the user if exist
     const user = await User.findById(userId);
 
     if (!user) {

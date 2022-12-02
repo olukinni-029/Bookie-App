@@ -36,21 +36,46 @@ exports.userSignup = async (req, res) => {
       role: phoneNumber === process.env.ADMIN_PHONE ? "Admin" : "User",
       phoneOtp:OTP,
     });
-    // Generate Otp, save and send to the user
-    let userNumber = user.phoneNumber;
-    const config = {
-      method: "post",
-      url: `https://account.kudisms.net/api/?username=${EMAIL}&password=${PASSWORD}&message=${message}&sender=Bookie&mobiles=0${userNumber}`,
-      headers: {},
-    };
-    // fetch the kudisms 
-    const resp = await axios(config);
     res.status(201).json({
       message: "OTP  sent successfully",
       user,
       userId: user._id,
     });
-    console.log(resp.data);
+    // Generate Otp, save and send to the user
+    let userNumber = user.phoneNumber;
+    const config = {
+      method: "post",
+      url: `https://account.kudisms.net/api/?username=${EMAIL}&password=${PASSWORD}&message=${message}&sender=Bookie&mobiles=${userNumber}`,
+      headers: {},
+    };
+    // fetch the kudisms 
+    const resp = await axios(config);
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_,
+        pass: process.env.PASSWORD_,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_,
+      to: email,
+      subject: "Verification otp",
+      text: message,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log("Email error application", error.message);
+      } else {
+        console.log(
+          `${new Date().toLocaleString()} - Email sent successfully:` +
+            info.response
+        );
+      }
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ error:error.message });
@@ -58,24 +83,56 @@ exports.userSignup = async (req, res) => {
 };
 
 // resend otp
-exports.resendOtp = async (req, res) => {
+exports.resendOtp = async (req, res,next) => {
   try {
-    const id = req.body._id;
-    const user = await User.findOne({ _id: id});
-    if (user) {
+    const user = await User.findOne({id:req.params.userId});
+    // check if user exist
+    if (!user) {
       res.status(404).json({ message: "User not found" });
       return;
     }
-    const phone = req.body.phoneNumber
-    const checkUser = await User.findOne({phoneNumber});
-    let userNumber = checkUser.phoneNumber;
+    // Save new generated otp
+    user.phoneOtp = OTP;
+    await user.save();
+
+    // Using kudisms to send the otp to user phone
+    let userNumber = user.phoneNumber;
     const config = {
       method: "post",
-      url: `https://account.kudisms.net/api/?username=${EMAIL}&password=${PASSWORD}&message=${message}&sender=Bookie&mobiles=0${userNumber}`,
-      headers: {},
+     url: `https://account.kudisms.net/api/?username=${EMAIL}&password=${PASSWORD}&message=${message}&sender=Bookie&mobiles=${userNumber}`,
+     headers: {},
     };
     const resp = await axios(config);
-    console.log(resp.date);
+    
+    // Send otp to user using nodemailer
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_,
+        pass: process.env.PASSWORD_,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_,
+      to: user.email,
+      subject: "Verification otp",
+      text: message,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log("Email error application", error.message);
+      } else {
+        console.log(
+          `${new Date().toLocaleString()} - Email sent successfully:` +
+            info.response
+        );
+      }
+    });
+
+      res.status(201).json({message:"Your OTP is successfully sent",user});
+       return;
   } catch (error) {
     console.log(error);
     return res.status(500).json({ error:error.message });
@@ -85,18 +142,21 @@ exports.resendOtp = async (req, res) => {
 // otp verification
 exports.verifyPhoneOtp = async (req, res) => {
   try {
+    // Validate input
     const { otp, userId } = req.body;
+    // check if user exist
     const user = await User.findById(userId);
     if (!user) {
       res.status(400).json({ message: "User not found" });
       return;
     }
+    // check if otp passed equal to the one generated during signup
     if (user.phoneOtp !== otp) {
       res.status(400).json({ message: "Incorrect otp error" });
       return;
     }
+    // Create token
     const token = createJwtToken({ userId: user._id });
-
     user.phoneOtp = "";
     await user.save();
 
@@ -155,15 +215,18 @@ exports.loginWithPhone = async (req, res) => {
 exports.forgetPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    // Validate input
     if (!email) {
       res.status(400).json("Invalid email");
       return;
     }
+    // Check if user exist
     const checkUser = await User.findOne({ email: req.body.email });
     if (!checkUser) {
       res.status(400).json("user not found");
       return;
     }
+    // Generate token and resetLink
     const token = createJwtToken({ userId: checkUser._id });
     if (!token) {
       return res
@@ -171,6 +234,8 @@ exports.forgetPassword = async (req, res) => {
         .json({ message: "An error occurred,Please try again later" });
     }
     const resetLink = `http://localhost:5540/reset-password/${token}`;
+    
+    // Send resetLink using nodemailer
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -196,6 +261,7 @@ exports.forgetPassword = async (req, res) => {
         );
       }
     });
+    // Save resetLink
     await User.updateOne({ resetLink: token });
     res.send("Password reset link has been sent to ur mail");
     return;
@@ -208,12 +274,16 @@ exports.forgetPassword = async (req, res) => {
 // reset password
 exports.resetPassword = async (req, res) => {
   try {
+    // Validate all input
     const { resetLink, newPass, email } = req.body;
     if (!(resetLink || newPass || email)) {
       return res.status(400).json({ message: "Invalid credential" });
     }
+    // hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPass, salt);
+    
+    // check  and verify resetLink
     if (resetLink) {
       verifyJwtToken(resetLink, (err) => {
         if (err) {
@@ -226,7 +296,8 @@ exports.resetPassword = async (req, res) => {
               .status(400)
               .json({ error: "user with this token does not exist" });
           }
-
+          
+          // Update and Save new Password
           const obj = {
             password: hashedPassword,
           };
@@ -243,6 +314,8 @@ exports.resetPassword = async (req, res) => {
           });
         });
       });
+      
+      // Send new Password to mail using nodemailer
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -276,6 +349,28 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// Admin view all user
+exports.allUsers = async (req, res) => {
+  try {
+    const user = await User.find();
+    return res.status(200).json({ message: "Registered Users", user });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// User view  dashboard
+exports.viewUser = async (req, res) => {
+  try {
+    const user = await User.findOne({id:req.params.userId},{password:0});
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // update phone number
 exports.updatePhone = async (req, res) => {
   try {
@@ -290,27 +385,6 @@ exports.updatePhone = async (req, res) => {
     );
     res.status(200).json({ message: "Updated successfully", user });
     return;
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.allUsers = async (req, res) => {
-  try {
-    const user = await User.find();
-    return res.status(200).json({ message: "Registered Users", user });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.viewUser = async (req, res) => {
-  try {
-    const _id = req.params.userId;
-    const user = await User.findOne({ userId: _id });
-    return res.status(200).json(user);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });

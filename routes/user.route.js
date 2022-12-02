@@ -11,16 +11,17 @@ const {
   resendOtp,
 } = require("../controller/user.controller");
 const checkAuth = require("../middleware/checkAuth");
+const checkAdmin = require("../middleware/checkAdmin");
 const router = express.Router();
 
 router.post("/signup", userSignup);
-router.post("/resendOtp",resendOtp);
+router.post("/resendOtp/:id",resendOtp);
 router.post("/otp", verifyPhoneOtp);
 router.post("/login", loginWithPhone);
 router.post("/forgotPass", forgetPassword);
 router.put("/resetpassword", resetPassword);
-router.put("/update/:id",updatePhone);
-router.get("/users",allUsers);
-router.get("/user/:_id",checkAuth,viewUser);
+router.get("/users",checkAdmin,allUsers);
+router.get("/:id",checkAuth,viewUser);
+router.put("/update/:id",checkAuth,updatePhone);
 
 module.exports = router;

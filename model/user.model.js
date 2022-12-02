@@ -2,6 +2,9 @@ const mongoose = require("mongoose");
 
 
 const userSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+      },
     email:{
         type:String,
         required:true,
@@ -22,7 +25,7 @@ const userSchema = new mongoose.Schema({
     },
     phoneOtp: {
         type: String,
-        expires: '3m',
+        expires: "2m",
       },
       role :{
         type : String,
