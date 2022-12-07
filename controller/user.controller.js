@@ -5,6 +5,8 @@ const { createJwtToken, verifyJwtToken } = require("../middleware/token");
 const { OTP, message } = require("../utils/message");
 const nodemailer = require("nodemailer");
 let { PASSWORD, EMAIL } = process.env;
+const Wallet = require("../model/wallet");
+
 
 exports.userSignup = async (req, res) => {
   try {
@@ -221,15 +223,15 @@ exports.forgetPassword = async (req, res) => {
       return;
     }
     // Check if user exist
-    const checkUser = await User.findOne({ email: req.body.email });
-    if (!checkUser) {
-      res.status(400).json("user not found");
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      res.status(400).json("User doesn't Exist");
       return;
     }
     // Generate token and resetLink
-    const token = createJwtToken({ userId: checkUser._id });
+    const token = createJwtToken({ userId: user._id });
     if (!token) {
-      return res
+      return res                            
         .status(500)
         .json({ message: "An error occurred,Please try again later" });
     }
@@ -262,8 +264,9 @@ exports.forgetPassword = async (req, res) => {
       }
     });
     // Save resetLink
-    await User.updateOne({ resetLink: token });
-    res.send("Password reset link has been sent to ur mail");
+    user.Token = token
+    await user.save();
+    res.status(200).json({message:"Your Password Reset link has been sent to your mail"});
     return;
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -271,44 +274,55 @@ exports.forgetPassword = async (req, res) => {
   }
 };
 
+// To get the reset link
+exports.resetLink = async (req, res) => {
+  const Token = req.params.Token
+  const user = await User.findOne({ Token })
+  res.status(201).json( { 
+    Token,
+    valid: user ? true : false
+  });
+};
+
+
 // reset password
 exports.resetPassword = async (req, res) => {
   try {
     // Validate all input
-    const { resetLink, newPass, email } = req.body;
-    if (!(resetLink || newPass || email)) {
+    const { Token, newPass, email } = req.body;
+    if (!(Token || newPass || email)) {
       return res.status(400).json({ message: "Invalid credential" });
     }
     // hash password
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPass, salt);
-    
+     const hashedPassword = await bcrypt.hash(newPass, salt);
+    console.log(hashedPassword);
     // check  and verify resetLink
-    if (resetLink) {
-      verifyJwtToken(resetLink, (err) => {
+    if (Token) {
+      verifyJwtToken(Token, (err) => {
         if (err) {
           res.status(401).json({ error: "Incorrect token or it is expired" });
           return;
         }
-        User.findOne({ resetLink }, (err, user) => {
+        User.findOne({Token }, (err, user) => {
           if (err || !user) {
             return res
               .status(400)
               .json({ error: "user with this token does not exist" });
           }
-          
+          console.log(Token);
           // Update and Save new Password
           const obj = {
             password: hashedPassword,
           };
-
-          user = User.updateOne(user, obj);
+          console.log(obj);
+          user.password =  obj;
           user.save((err) => {
             if (err) {
               return res.status(400).json({ error: "reset password error" });
             } else {
               return res.status(200).json({
-                message: "your password has been changed successfully",
+                message: "Your password has been changed successfully",
               });
             }
           });
@@ -316,32 +330,32 @@ exports.resetPassword = async (req, res) => {
       });
       
       // Send new Password to mail using nodemailer
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_,
-          pass: process.env.PASSWORD_,
-        },
-      });
+    //   const transporter = nodemailer.createTransport({
+    //     service: "gmail",
+    //     auth: {
+    //       user: process.env.EMAIL_,
+    //       pass: process.env.PASSWORD_,
+    //     },
+    //   });
 
-      const mailOptions = {
-        from: process.env.EMAIL_,
-        to: email,
-        subject: ` Your Password has been updated `,
-        html: `
-    <h2> Here's your new password </h2>
-    <p> new password: ${newPass}</p>
-    `,
-      };
+    //   const mailOptions = {
+    //     from: process.env.EMAIL_,
+    //     to: email,
+    //     subject: ` Your Password has been updated `,
+    //     html: `
+    // <h2> Here's your new password </h2>
+    // <p> new password: ${newPass}</p>
+    // `,
+    //   };
 
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.log(error);
-        }
-        console.log("Email Sent to " + info.accepted);
-      });
-    } else {
-      return res.status(401).json({ error: "authentication error" });
+    //   transporter.sendMail(mailOptions, (error, info) => {
+    //     if (error) {
+    //       console.log(error);
+    //     }
+    //     console.log("Email Sent to " + info.accepted);
+    //   });
+    // } else {
+    //   return res.status(401).json({ error: "authentication error" });
     }
   } catch (error) {
     console.log(error);
@@ -390,3 +404,25 @@ exports.updatePhone = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// create a user wallet
+exports.createWallet = async(req,res)=>{
+  try {
+    const {firstName,lastName,bvn,contactAddress}= req.body;
+    if(!(firstName||lastName||bvn||contactAddress)){
+      res.status(400).json({message:"All field are required"});
+    }
+    const checkUser = await User.findOne({userId});
+    if(!checkUser){
+      res.status(400).json("Unauthorized");
+    };
+    const wallet = await Wallet .create({
+      firstName,
+      lastName,
+      bvn,
+      contactAddress,
+    })
+  } catch (error) {
+    
+  }
+}

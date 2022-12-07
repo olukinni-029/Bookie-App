@@ -30,9 +30,10 @@ const userSchema = new mongoose.Schema({
       role :{
         type : String,
        },
-       resetLink:{
+       Token:{
         type:String,
-        default:""
+        default:"",
+        expires:"5m",
       },
 },
 {

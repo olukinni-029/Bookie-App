@@ -14,6 +14,7 @@ app.use(
       credentials: true,
       origin: "*",
       optionsSuccessStatus: 200,
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     })
   );
   

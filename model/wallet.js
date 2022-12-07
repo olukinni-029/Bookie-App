@@ -20,6 +20,7 @@ const walletSchema = new mongoose.Schema({
       bvn:{
         type:String,
         required: true,
+        maxLength:11,
       },
       balance: {
         type: mongoose.Decimal128,
@@ -27,6 +28,10 @@ const walletSchema = new mongoose.Schema({
         default: 0.00
     },
     contactAddress:{
+      type:String,
+      required:true,
+    },
+    accountNum:{
       type:String,
     },
 },

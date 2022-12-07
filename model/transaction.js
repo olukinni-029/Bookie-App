@@ -2,13 +2,9 @@ const mongoose = require("mongoose");
 
 
 const tranxSchema = new mongoose.Schema({
-    walletId: {
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "wallet",
-      },
-    accountNum:{
-        type:String,
-        required:true,
+        ref: "user",
       },
       trnxType: {
         type: String,
