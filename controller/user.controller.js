@@ -312,7 +312,7 @@ const token  = req.params.token;
 
     const mailOptions = {
       from: process.env.EMAIL_,
-      to: email,
+      to: user.email,
       subject: ` Your Password has been updated `,
       html: `
       <h2> Here's your new password </h2>
@@ -337,7 +337,7 @@ const token  = req.params.token;
 
 // Admin view all user
 exports.allUsers = async (req, res) => {
-  try {n
+  try {
     const user = await User.find();
     return res.status(200).json({ message: "Registered Users", user });
   } catch (error) {
