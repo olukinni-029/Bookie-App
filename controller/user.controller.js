@@ -223,7 +223,7 @@ exports.forgetPassword = async (req, res) => {
       return;
     }
     // Check if user exist
-    const user = await User.findOne({ email: req.body.email });
+    const user = await User.findOne({email });
     if (!user) {
       res.status(400).json("User doesn't Exist");
       return;
@@ -239,7 +239,8 @@ exports.forgetPassword = async (req, res) => {
     
     // Send resetLink using nodemailer
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port:465,
       auth: {
         user: process.env.EMAIL_,
         pass: process.env.PASSWORD_,
@@ -284,79 +285,58 @@ exports.resetLink = async (req, res) => {
   });
 };
 
-
 // reset password
 exports.resetPassword = async (req, res) => {
   try {
     // Validate all input
-    const { Token, newPass, email } = req.body;
-    if (!(Token || newPass || email)) {
+    const {newPass} = req.body;
+    if (!(newPass)) {
       return res.status(400).json({ message: "Invalid credential" });
     }
+const token  = req.params.token;
+
+    const user = await User.findOne({Token:token });
+    if (!user) return res.status(400).send("invalid link or expired");
+
+
     // hash password
-    const salt = await bcrypt.genSalt(10);
-     const hashedPassword = await bcrypt.hash(newPass, salt);
-    console.log(hashedPassword);
-    // check  and verify resetLink
-    if (Token) {
-      verifyJwtToken(Token, (err) => {
-        if (err) {
-          res.status(401).json({ error: "Incorrect token or it is expired" });
-          return;
-        }
-        User.findOne({Token }, (err, user) => {
-          if (err || !user) {
-            return res
-              .status(400)
-              .json({ error: "user with this token does not exist" });
-          }
-          console.log(Token);
-          // Update and Save new Password
-          const obj = {
-            password: hashedPassword,
-          };
-          console.log(obj);
-          user.password =  obj;
-          user.save((err) => {
-            if (err) {
-              return res.status(400).json({ error: "reset password error" });
-            } else {
-              return res.status(200).json({
-                message: "Your password has been changed successfully",
-              });
-            }
-          });
-        });
-      });
-      
-      // Send new Password to mail using nodemailer
-    //   const transporter = nodemailer.createTransport({
-    //     service: "gmail",
-    //     auth: {
-    //       user: process.env.EMAIL_,
-    //       pass: process.env.PASSWORD_,
-    //     },
-    //   });
+    let salt = await bcrypt.genSalt(10);
 
-    //   const mailOptions = {
-    //     from: process.env.EMAIL_,
-    //     to: email,
-    //     subject: ` Your Password has been updated `,
-    //     html: `
-    // <h2> Here's your new password </h2>
-    // <p> new password: ${newPass}</p>
-    // `,
-    //   };
+    const hash = await bcrypt.hash(newPass, salt);
 
-    //   transporter.sendMail(mailOptions, (error, info) => {
-    //     if (error) {
-    //       console.log(error);
-    //     }
-    //     console.log("Email Sent to " + info.accepted);
-    //   });
-    // } else {
-    //   return res.status(401).json({ error: "authentication error" });
-    }
+    user.password = hash;
+     user.Token = "";
+    await user.save();
+
+
+    // Send new Password to mail using nodemailer
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_,
+        pass: process.env.PASSWORD_,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_,
+      to: email,
+      subject: ` Your Password has been updated `,
+      html: `
+      <h2> Here's your new password </h2>
+      <p> new password: ${newPass}</p>
+      `,
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log("Email sent: " + info.response);
+      }
+    });
+
+    res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
@@ -365,7 +345,7 @@ exports.resetPassword = async (req, res) => {
 
 // Admin view all user
 exports.allUsers = async (req, res) => {
-  try {
+  try {n
     const user = await User.find();
     return res.status(200).json({ message: "Registered Users", user });
   } catch (error) {
