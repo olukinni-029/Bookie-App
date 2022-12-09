@@ -108,7 +108,8 @@ exports.resendOtp = async (req, res,next) => {
     
     // Send otp to user using nodemailer
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port:465,
       auth: {
         user: process.env.EMAIL_,
         pass: process.env.PASSWORD_,
@@ -275,16 +276,6 @@ exports.forgetPassword = async (req, res) => {
   }
 };
 
-// To get the reset link
-exports.resetLink = async (req, res) => {
-  const Token = req.params.Token
-  const user = await User.findOne({ Token })
-  res.status(201).json( { 
-    Token,
-    valid: user ? true : false
-  });
-};
-
 // reset password
 exports.resetPassword = async (req, res) => {
   try {
@@ -311,7 +302,8 @@ const token  = req.params.token;
 
     // Send new Password to mail using nodemailer
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port:465,
       auth: {
         user: process.env.EMAIL_,
         pass: process.env.PASSWORD_,

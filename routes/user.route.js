@@ -21,7 +21,6 @@ router.post("/otp", verifyPhoneOtp);
 router.post("/login", loginWithPhone);
 router.post("/forgotPass", forgetPassword);
 router.post("/resetpassword/:token", resetPassword);
-router.get("/reset-password/:token", resetLink);
 router.get("/users", checkAdmin, allUsers);
 router.get("/:id", checkAuth, viewUser);
 router.put("/update/:id", checkAuth, updatePhone);
