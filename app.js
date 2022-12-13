@@ -4,6 +4,7 @@ const connectDB = require("./database/db");
 const userRoute = require("./routes/user.route");
 const cors = require("cors");
 const imageRoute = require("./routes/image.route");
+const newsLetter = require("./routes/newsletter.route");
 
 const app = express();
 
@@ -24,6 +25,7 @@ const port = process.env.PORT|| 1080;
 
 app.use('/api/user',userRoute);
 app.use('/api',imageRoute);
+app.use('/api/newsletter',newsLetter);
 
 
 app.get('/',(req,res)=>{

@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const walletSchema = new mongoose.Schema({
-    userId: {
+    walletId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "user",
       },
@@ -34,11 +34,18 @@ const walletSchema = new mongoose.Schema({
     accountNum:{
       type:String,
     },
+    is_permanent:{
+      type:String,
+      default:true,
+    },
+    tx_ref:{
+      type:String,
+    },
 },
 {
     timestamps:true,
     versionKey:false,
 }
-)
+);
 
 module.exports = mongoose.model('Wallet',walletSchema);

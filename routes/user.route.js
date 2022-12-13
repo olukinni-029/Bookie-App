@@ -10,6 +10,7 @@ const {
   viewUser,
   resendOtp,
   resetLink,
+  createWallet,
 } = require("../controller/user.controller");
 const checkAuth = require("../middleware/checkAuth");
 const checkAdmin = require("../middleware/checkAdmin");
@@ -24,5 +25,6 @@ router.post("/resetpassword/:token", resetPassword);
 router.get("/users", checkAdmin, allUsers);
 router.get("/:id", checkAuth, viewUser);
 router.put("/update/:id", checkAuth, updatePhone);
+router.post("/create",checkAuth,createWallet);
 
 module.exports = router;
